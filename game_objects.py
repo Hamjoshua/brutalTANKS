@@ -1,4 +1,30 @@
-from main import *
+from constants import *
+import pygame
+import os
+import sys
+
+# todo у этой библиотеки слишком много зависимостей. нехорошо
+
+
+def load_image(name, colorkey=None):
+    fullname = os.path.join('data/sprites', name)
+
+    if not os.path.isfile(fullname):
+        print(f"Файл с изображением '{fullname}' не найден")
+        sys.exit()
+
+    if colorkey == 0:
+        image = pygame.image.load(fullname)
+    else:
+        image = pygame.image.load(fullname).convert()
+
+    if colorkey is not None:
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = image.convert_alpha()
+    return image
 
 pygame.init()
 screen = pygame.display.set_mode(WINDOW_SIZE)
@@ -171,35 +197,35 @@ TANKS_DICT = {'Tank': {'sprite': (normal_tank_hull, normal_tank_turret),
                          'dict_id_bullets': 0}}
 
 
-def calculate_distance_for_player(object):
-    obj_coords = object.get_position()
-    pl_coords = get_player_coords()
-    a, b = abs(obj_coords[0] - pl_coords[0]) + 1, abs(obj_coords[1] - pl_coords[1])
-    c = pow((a ** 2 + b ** 2), 0.5)
-    if object.__repr__() == 'Player':
-        return load_user_info()[load_current_user()]['sound_value'] / 100
-    percent = round(1 / c, 3) * (load_user_info()[load_current_user()]['sound_value'] / 100)
-    return percent if percent >= 0.08 else 0
+# def calculate_distance_for_player(object):
+#     obj_coords = object.get_position()
+#     pl_coords = get_player_coords()
+#     a, b = abs(obj_coords[0] - pl_coords[0]) + 1, abs(obj_coords[1] - pl_coords[1])
+#     c = pow((a ** 2 + b ** 2), 0.5)
+#     if object.__repr__() == 'Player':
+#         return load_user_info()[load_current_user()]['sound_value'] / 100
+#     percent = round(1 / c, 3) * (load_user_info()[load_current_user()]['sound_value'] / 100)
+#     return percent if percent >= 0.08 else 0
 
 
-def play_sound(object, name_of_sound):
-    if object is not None:
-        sound = object.sound_dict[name_of_sound]
-        volume = calculate_distance_for_player(object)
-        if name_of_sound == 'death':
-            volume += 0.2
-        sound.set_volume(volume)
-        if (object.__repr__() == 'Beast' and name_of_sound == 'death') or \
-                name_of_sound == 'near_fly':
-            sound.play()
-        else:
-            sound.play(maxtime=1000, fade_ms=200)
-            sound.fadeout(500)
-    else:
-        volume = load_user_info()[load_current_user()]['sound_value'] / 100
-        sound = pygame.mixer.Sound(name_of_sound)
-        sound.set_volume(volume)
-        sound.play()
+# def play_sound(object, name_of_sound):
+#     if object is not None:
+#         sound = object.sound_dict[name_of_sound]
+#         volume = calculate_distance_for_player(object)
+#         if name_of_sound == 'death':
+#             volume += 0.2
+#         sound.set_volume(volume)
+#         if (object.__repr__() == 'Beast' and name_of_sound == 'death') or \
+#                 name_of_sound == 'near_fly':
+#             sound.play()
+#         else:
+#             sound.play(maxtime=1000, fade_ms=200)
+#             sound.fadeout(500)
+#     else:
+#         volume = load_user_info()[load_current_user()]['sound_value'] / 100
+#         sound = pygame.mixer.Sound(name_of_sound)
+#         sound.set_volume(volume)
+#         sound.play()
 
 
 class Tank(pygame.sprite.Sprite):
