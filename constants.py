@@ -1,19 +1,27 @@
 import enum
 import pygame
 
+
 class GameConditions(enum.IntEnum):
     GameIsLoosed = enum.auto()
     GameIsWon = enum.auto()
     GameIsPaused = enum.auto()
 
 
-class GuiResponses(enum.IntEnum):
+class GuiCodes(enum.IntEnum):
     Ok = enum.auto()
     Cancel = enum.auto()
     Menu = enum.auto()
     Settings = enum.auto()
     LoadGame = enum.auto()
     SaveGame = enum.auto()
+
+
+# todo может не пригодится
+class Destinations(enum.IntEnum):
+    Self = enum.auto()
+    Detect = enum.auto()
+    Player = enum.auto()
 
 # Управление todo может не понадобиться
 
@@ -41,9 +49,16 @@ CONTROL_KEYS_V4 = {FORWARD: pygame.K_KP8, BACK: pygame.K_KP2,
                    TURN_RIGHT_TURRET: pygame.K_KP9, TURN_LEFT_TURRET: pygame.K_KP7,
                    SHOOT: pygame.K_KP_PLUS}
 
+# Папки, где хранится информация
+MAPS_DIR = 'data/maps'
+FONTS_DIR = 'data/fonts'
+GUI_THEMES_DIR = 'data/gui_themes'
+SAVED_USER_INFO_DIR = 'data/saved user info'
+SOUND_DIR = 'data/sounds'
+CUTSCENES_DIR = 'data/cutscenes'
+SPRITES_DIR = 'sprites'
+
 # Типы снарядов todo может появиться отдельный класс для снарядов
-
-
 TANK_BULLET = 10
 URAN_BULET = 11
 ENERGY_BULLET = 12

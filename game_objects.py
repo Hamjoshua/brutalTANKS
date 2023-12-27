@@ -2,9 +2,10 @@ from constants import *
 import pygame
 import os
 import sys
+from math import cos, sin
 
 # todo у этой библиотеки слишком много зависимостей. нехорошо
-
+MOVE_STEP = 1
 
 def load_image(name, colorkey=None):
     fullname = os.path.join('data/sprites', name)
@@ -174,16 +175,19 @@ CONTROLLED_PLAYERS_DICT = {CONTROL_KEYS_V1[SHOOT]: {'name': 'Green',
                                                     'sprite_coord': lambda x: (
                                                         0, WINDOW_HEIGHT - x.get_height()),
                                                     'control_set': CONTROL_KEYS_V4}}
+
+# [(green_tank_hull, green_tank_turret),
+#                                     (red_tank_hull, red_tank_turret),
+#                                     (blue_tank_hull, blue_tank_turret),
+#                                     (violet_tank_hull, violet_tank_turret)]
+
 TANKS_DICT = {'Tank': {'sprite': (normal_tank_hull, normal_tank_turret),
                        'life': 1,
                        'dict_id_bullets': normal_bullet_dict},
               'Beast': {'sprite': (beast_tank_hull, beast_tank_turret),
                         'life': 1,
                         'dict_id_bullets': beast_bullet_dict},
-              'Player': {'sprite': [(green_tank_hull, green_tank_turret),
-                                    (red_tank_hull, red_tank_turret),
-                                    (blue_tank_hull, blue_tank_turret),
-                                    (violet_tank_hull, violet_tank_turret)],
+              'Player': {'sprite': (green_tank_hull, green_tank_turret),
                          'life': 2,
                          'dict_id_bullets': hero_bullet_dict},
               'Heavy': {'sprite': (heavy_tank_hull, heavy_tank_turret),
@@ -246,7 +250,7 @@ class Tank(pygame.sprite.Sprite):
         self.crash_tank_image_turret = crash_tank
         self.dict_id_bullets = TANKS_DICT[self.__repr__()]['dict_id_bullets']
 
-        # init hull and turret
+        # инициализация корпуса и башни
         self.init_tank_graphics(position, rotate_hull, rotate_turret)
 
         self.group = group
@@ -254,7 +258,7 @@ class Tank(pygame.sprite.Sprite):
             self.group.add(self)
             self.group.add(self.tank_turret)
 
-        # timers
+        # таймеры
         self.shooting_cooldown = 40 * FPS
         self.current_shooting_cooldown = 0
 
@@ -270,41 +274,42 @@ class Tank(pygame.sprite.Sprite):
         self.turn_turret_cooldown = 30 * FPS
         self.current_turn_turret_cooldown = 0
 
-        # init sound_dict
-        self.sound_dict = dict()
-        self.sound_dict['fire'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'fire.mp3'))
-        self.sound_dict['death'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'death.mp3'))
-        self.sound_dict['move'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'move.mp3'))
-        self.sound_dict['respawn'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'other', 'respawn.mp3'))
+        # # init sound_dict
+        # self.sound_dict = dict()
+        # self.sound_dict['fire'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'fire.mp3'))
+        # self.sound_dict['death'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'death.mp3'))
+        # self.sound_dict['move'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'move.mp3'))
+        # self.sound_dict['respawn'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'other', 'respawn.mp3'))
 
         if self.respawn:
             self.respawn_time = 10 * FPS
             self.respawn_args = (position, rotate_hull, rotate_turret)
 
     def init_tank_graphics(self, position, rotate_hull, rotate_turret):
-        # init turret
+        # башня
         self.tank_turret = pygame.sprite.Sprite()
+        # todo посмотреть нужно ли давать несколько вариантов графики Player
         self.tank_turret.image = TANKS_DICT[self.__repr__()]['sprite'][1]
         self.tank_turret.rect = self.tank_turret.image.get_rect()
-        self.tank_turret.rect.x, self.tank_turret.rect.y = \
-            position[0] * TILE_SIZE, position[1] * TILE_SIZE
+        self.tank_turret.rect.x = position[0]
+        self.tank_turret.rect.y = position[1]
 
-        # init hull
+        # корпус
         self.image = TANKS_DICT[self.__repr__()]['sprite'][0]
         self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = \
-            position[0] * TILE_SIZE, position[1] * TILE_SIZE
+        self.rect.x = position[0]
+        self.rect.y = position[1]
 
         self.init_anima()
 
         self.rotate_turret = 0
         self.set_turret_rotate(rotate_turret)
         self.rotate_hull = 0
-        self.set_rotate(rotate_hull)
+        self.add_rotate(rotate_hull)
         self.x, self.y = position
 
     def init_anima(self):
@@ -346,15 +351,12 @@ class Tank(pygame.sprite.Sprite):
                 # Очищение танка от всех бонусов, которые он мог собрать
                 self.move_forward_cooldown = 8 * FPS
                 self.shooting_cooldown = 40 * FPS
-                self.sound_dict['fire'] = pygame.mixer.Sound(
-                    os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'fire.mp3'))
                 self.dict_id_bullets = TANKS_DICT[self.__repr__()]['dict_id_bullets']
 
-                play_sound(self, 'respawn')
                 self.respawn_time = 10 * FPS
                 self.is_crashed = False
                 self.init_tank_graphics(*self.respawn_args)
-                self.set_position(self.respawn_args[0])
+                self.set_position(self.respawn_args[0][0], self.respawn_args[0][1])
                 self.refill_health()
 
     def get_position(self):
@@ -366,39 +368,67 @@ class Tank(pygame.sprite.Sprite):
     def set_control_keys(self, keys):
         self.control_keys = keys
 
-    def set_position(self, position):
+    def set_position(self, x, y):
         self.image = self.animated_hull
-        self.tank_turret.rect.x, self.tank_turret.rect.y = \
-            position[0] * TILE_SIZE, position[1] * TILE_SIZE
-        self.rect.x, self.rect.y = \
-            position[0] * TILE_SIZE, position[1] * TILE_SIZE
-        self.x, self.y = position
-        play_sound(self, 'move')
+        self.tank_turret.rect.x += x
+        self.tank_turret.rect.y += y
+        self.rect.x += x
+        self.rect.y += y
+        self.x, self.y = x, y
 
     def set_turret_rotate(self, rotate):
         self.rotate_turret = (self.rotate_turret + rotate) % 360
         self.orig_turret = pygame.transform.rotate(self.orig_turret, rotate)
         self.animated_turret = pygame.transform.rotate(self.animated_turret, rotate)
 
-    def set_rotate(self, rotate):
+    def add_rotate(self, rotate):
         self.rotate_hull = (self.rotate_hull + rotate) % 360
         self.orig = pygame.transform.rotate(self.orig, rotate)
         self.animated_hull = pygame.transform.rotate(self.animated_hull, rotate)
         # self.image = pygame.transform.rotate(self.image, rotate)
         # self.set_turret_rotate(rotate)
 
-    def move_forward(self):
-        if self.current_move_forward_cooldown <= 0:
-            direction_move = [round(i) for i in DIRECTION_MOVE_BY_ANGLE[self.rotate_hull]]
-            self.set_position((self.x + direction_move[0], self.y + direction_move[1]))
-            self.current_move_forward_cooldown = self.move_forward_cooldown
-            return True
-        return False
+    # todo оптимизровать нахождение угла
+    def get_cutted_angle(self) -> int:
+        angle = self.rotate_hull
+        while angle > 90:
+            angle -= 90
+        return angle
 
-    def move_back(self):
+    # todo move не должен возвращать bool!
+    def calc_x_y(self, hypotenuse):
+        if self.rotate_hull == 180 | self.rotate_hull == 0:
+            return hypotenuse, 0
+
+        if self.rotate_hull == 90 | self.rotate_hull == 270:
+            return 0, hypotenuse
+
+        angle = self.get_cutted_angle()
+        x = abs(sin(angle) * hypotenuse)
+        y = abs(cos(angle) * hypotenuse)
+
+        return x, y
+
+    def move_rect(self, step):
+        x, y = self.calc_x_y(step)
+        # узнать направление
+        if self.rotate_hull > 90 & self.rotate_hull < 270:
+            y *= -1
+        if self.rotate_hull < 360 & self.rotate_hull > 180:
+            x *= -1
+        self.set_position(x, y)
+
+    def move_forward(self, step=MOVE_STEP):
+            if self.current_move_forward_cooldown <= 0:
+                self.move_rect(step)
+
+                self.current_move_forward_cooldown = self.move_forward_cooldown
+                return True
+            return False
+
+    def move_back(self, step=MOVE_STEP):
         if self.current_move_back_cooldown <= 0:
-            direction_move = [round(i) for i in DIRECTION_MOVE_BY_ANGLE[self.rotate_hull]]
-            self.set_position((self.x - direction_move[0], self.y - direction_move[1]))
+            self.move_rect(-step)
             self.current_move_back_cooldown = self.move_back_cooldown
             return True
         return False
@@ -437,12 +467,10 @@ class Tank(pygame.sprite.Sprite):
             bullets_list.append(Bullet(
                 self.get_position(), self.rotate_turret, self.dict_id_bullets, self))
             self.current_shooting_cooldown = self.shooting_cooldown
-            play_sound(self, 'fire')
             return True
         return False
 
     def destroy_the_tank(self, another_group):
-        play_sound(self, 'death')
         self.is_crashed = True
         self.tank_turret.image = pygame.transform.rotate(
             self.crash_tank_image_turret, self.get_rotate()[1])
@@ -473,7 +501,7 @@ class Convoy(Tank):
 
     def shoot(self, bullets_list):
         if self.turn_turret_right():
-            play_sound(self, 'fire')
+            pass
 
     def __repr__(self):
         return 'Convoy'
@@ -483,19 +511,18 @@ class Player(Tank):
     def __init__(self, position, rotate_turret=0,
                  rotate_hull=0, control_keys=CONTROL_KEYS_V1,
                  group=None, respawn=False):
-        self.sound_dict = dict()
         super().__init__(position, rotate_turret,
                          rotate_hull, control_keys, group, respawn)
 
         # Иницализация уникальных звуков для игрока
-        self.sound_dict['turn_turret'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'turn_turret.mp3'))
-        self.sound_dict['move'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'move.mp3'))
-        self.sound_dict['brake'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'brake.mp3'))
-        self.sound_dict['turn_hull'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'turn_hull.mp3'))
+        # self.sound_dict['turn_turret'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'turn_turret.mp3'))
+        # self.sound_dict['move'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'move.mp3'))
+        # self.sound_dict['brake'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'brake.mp3'))
+        # self.sound_dict['turn_hull'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'tanks', self.__repr__(), 'turn_hull.mp3'))
         self.team = 'green'
 
         # Поворт турели
@@ -511,51 +538,26 @@ class Player(Tank):
         colorset_from_controlkeys_index = [CONTROL_KEYS_V1, CONTROL_KEYS_V2, CONTROL_KEYS_V3,
                                            CONTROL_KEYS_V4].index(self.control_keys)
 
-        # init turret
-        self.tank_turret = pygame.sprite.Sprite()
-        self.tank_turret.image = TANKS_DICT[self.__repr__()]['sprite'][colorset_from_controlkeys_index][1]
-        self.tank_turret.rect = self.tank_turret.image.get_rect()
-        self.tank_turret.rect.x, self.tank_turret.rect.y = \
-            position[0] * TILE_SIZE, position[1] * TILE_SIZE
-
-        # init hull
-        self.image = TANKS_DICT[self.__repr__()]['sprite'][colorset_from_controlkeys_index][0]
-        self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = \
-            position[0] * TILE_SIZE, position[1] * TILE_SIZE
-
-        self.init_anima()
-
-        self.rotate_turret = 0
-        self.set_turret_rotate(rotate_turret)
-        self.rotate_hull = 0
-        self.set_rotate(rotate_hull)
-        self.x, self.y = position
+        super().init_tank_graphics(position, rotate_hull, rotate_turret)
 
     def turn_turret_left(self):
-        if super().turn_turret_left():
-            play_sound(self, 'turn_turret')
+        super().turn_turret_left()
 
     def turn_turret_right(self):
-        if super(Player, self).turn_turret_right():
-            play_sound(self, 'turn_turret')
+        super(Player, self)
 
-    def set_position(self, position):
-        super(Player, self).set_position(position)
-        play_sound(self, 'move')
+    def set_position(self, x, y):
+        super(Player, self).set_position(x, y)
         self.is_stop = False
 
     def turn_left(self):
-        if super(Player, self).turn_left():
-            play_sound(self, 'turn_hull')
+        super(Player, self).turn_left()
 
     def turn_right(self):
-        if super(Player, self).turn_right():
-            play_sound(self, 'turn_hull')
+        super(Player, self).turn_right()
 
     def play_brake(self):
         if not self.is_stop:
-            play_sound(self, 'brake')
             self.is_stop = True
 
 
@@ -594,11 +596,6 @@ class Beast(Tank):
         self.rect.x, self.rect.y = \
             position[0] * TILE_SIZE, position[1] * TILE_SIZE
         self.x, self.y = position
-        sound = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', self.__repr__(),
-                         f'move{choice(["_1", "_2", "_3"])}.mp3'))
-        sound.set_volume(calculate_distance_for_player(self))
-        sound.play()
 
 
 class Heavy(Tank):
@@ -618,7 +615,6 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, position, rotate, bullet_dict, owner=None):
         super().__init__()
         self.x, self.y = position
-        self.direction_move = DIRECTION_MOVE_BY_ANGLE[rotate]
         self.owner = owner
 
         image = bullet_dict[0]
@@ -632,13 +628,13 @@ class Bullet(pygame.sprite.Sprite):
         self.group = pygame.sprite.Group()
         self.group.add(self)
 
-        self.sound_dict = dict()
-        self.sound_dict['collision_unbreak'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'bullets', 'collision_unbreak.mp3'))
-        self.sound_dict['collision_break'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'bullets', 'collision_break.mp3'))
-        self.sound_dict['near_fly'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'bullets', 'near_fly.mp3'))
+        # self.sound_dict = dict()
+        # self.sound_dict['collision_unbreak'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'bullets', 'collision_unbreak.mp3'))
+        # self.sound_dict['collision_break'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'bullets', 'collision_break.mp3'))
+        # self.sound_dict['near_fly'] = pygame.mixer.Sound(
+        #     os.path.join(SOUND_DIR, 'bullets', 'near_fly.mp3'))
 
     def get_position(self):
         return self.x, self.y
@@ -657,17 +653,6 @@ class Bullet(pygame.sprite.Sprite):
 
     def render(self, screen):
         self.group.draw(screen)
-
-    def sounds_break(self):
-        play_sound(self, 'collision_break')
-
-    def sounds_unbreak(self):
-        play_sound(self, 'collision_unbreak')
-
-    def sound_near_with_player(self):
-        distance = calculate_distance_for_player(self)
-        if distance == 0.43 and self != hero_bullet_dict[0]:
-            play_sound(self, 'near_fly')
 
 
 class MapObject(pygame.sprite.Sprite):
@@ -718,7 +703,7 @@ class Life_MapObject(MapObject):
         # Танк, который наступил на объект карты
         x, y = self.get_position()
         map.map[y][x].health += 1
-        play_sound(None, os.path.join(SOUND_DIR, 'other', 'recharge.wav'))
+        # play_sound(None, os.path.join(SOUND_DIR, 'other', 'recharge.wav'))
 
     def __repr__(self):
         return 'Life_MapObject'
@@ -737,7 +722,6 @@ class Boost_MapObject(MapObject):
         tank = map.map[y][x]
         tank.shooting_cooldown -= tank.shooting_cooldown / 100 * 30
         tank.move_forward_cooldown -= tank.move_forward_cooldown / 100 * 30
-        play_sound(None, os.path.join(SOUND_DIR, 'other', 'boost_taked.mp3'))
 
     def __repr__(self):
         return 'Boost_MapObject'
@@ -758,9 +742,6 @@ class Gun_MapObject(MapObject):
         tank.rotate_turret = 0
         tank.dict_id_bullets = gun_bullet_dict
         tank.set_turret_rotate(old_rotate)
-        tank.sound_dict['fire'] = pygame.mixer.Sound(
-            os.path.join(SOUND_DIR, 'tanks', which_fire_sound, 'fire.mp3'))
-        play_sound(None, take_sound_name)
 
 
 class Uran_MapObject(Gun_MapObject):
