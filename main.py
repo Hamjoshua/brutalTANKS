@@ -24,12 +24,8 @@ class Camera:
         self.map_x, self.map_y = 0, 0
 
     def in_range(self, x: int, y: int) -> bool:
-        camera_coord = \
-            abs(self.rect.x // TILE_SIZE), \
-            abs(self.rect.y // TILE_SIZE)
-
-        return x in range(camera_coord[0], self.rect.width) and \
-               y in range(camera_coord[1], self.rect.height)
+        return x in range(self.rect.x, self.rect.width) and \
+               y in range(self.rect.y, self.rect.height)
 
     def apply(self, obj):
         if isinstance(obj, Bullet):

@@ -231,6 +231,15 @@ TANKS_DICT = {'Tank': {'sprite': (normal_tank_hull, normal_tank_turret),
 #         sound.set_volume(volume)
 #         sound.play()
 
+class GameCell(pygame.sprite.Sprite):
+    def __init__(self, x: int, y: int, tile_size=TILE_SIZE):
+        super(GameCell, self).__init__()
+
+
+class BreakableGameCell(GameCell):
+    def __init__(self, x: int, y: int, tile_size=TILE_SIZE):
+        super(BreakableGameCell, self).__init__(x, y, TILE_SIZE)
+
 
 class Tank(pygame.sprite.Sprite):
     def __init__(self, position, rotate_turret=0,
