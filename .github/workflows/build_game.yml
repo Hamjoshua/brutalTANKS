@@ -1,10 +1,10 @@
 name: Build Game Executable
 
 on:
-  pull_request:
+  push:
     branches:
       - master
-  workflow_dispatch: # Возможность ручного запуска
+  workflow_dispatch: # Ручной запуск тоже будет создавать новый релиз
 
 jobs:
   build-windows:
@@ -31,10 +31,23 @@ jobs:
         # Для --onefile данные распаковываются во временную папку, пути нужно корректировать в коде
         pyinstaller --onefile --windowed --add-data "data;data" main.py -i tank_icon.ico
 
-    - name: Upload Release Asset
+    - name: Create Release and Upload Asset
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
       with:
+        # Генерируем имя тега динамически: v1.0.<номер_запуска>
+        tag_name: v1.0.${{ github.run_number }}
+        # Имя релиза в интерфейсе
+        release_name: Build ${{ github.run_number }}
+        # Путь к собранному файлу
         files: dist/main.exe
+        # Помечаем как черновик, если хотите проверять перед публикацией (false = сразу публично)
+        draft: false
+        # Помечаем как пре-релиз (опционально)
+        prerelease: false
+        # Тело релиза
+        body: |
+          Автоматическая сборка №${{ github.run_number }}
+          Дата: ${{ github.event.head_commit.timestamp }}
+          Коммит: ${{ github.sha }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
