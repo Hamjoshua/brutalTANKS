@@ -1,0 +1,40 @@
+name: Build Game Executable
+
+on:
+  push:
+    tags:
+      - 'v*'  # Запуск только при создании тега версии
+  workflow_dispatch: # Возможность ручного запуска
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build Executable
+      run: |
+        # Важно: путь к данным зависит от ОС. В Windows разделитель ';'
+        # Для --onefile данные распаковываются во временную папку, пути нужно корректировать в коде
+        pyinstaller --nonconfirm --onefile --windowed --add-data "data;data" --add-data "images;images" main.py
+
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: dist/main.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
