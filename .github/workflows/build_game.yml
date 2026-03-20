@@ -1,9 +1,9 @@
 name: Build Game Executable
 
 on:
-  push:
-    tags:
-      - 'v*'  # Запуск только при создании тега версии
+  pull_request:
+    branches:
+      - master
   workflow_dispatch: # Возможность ручного запуска
 
 jobs:
