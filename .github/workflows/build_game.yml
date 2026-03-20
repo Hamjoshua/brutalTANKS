@@ -29,7 +29,7 @@ jobs:
       run: |
         # Важно: путь к данным зависит от ОС. В Windows разделитель ';'
         # Для --onefile данные распаковываются во временную папку, пути нужно корректировать в коде
-        pyinstaller --nonconfirm --onefile --windowed --add-data "data;data" --add-data "images;images" main.py
+        pyinstaller --onefile --windowed --add-data "data;data" main.py -i tank_icon.ico
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v1
