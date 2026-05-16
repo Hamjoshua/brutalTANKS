@@ -1,0 +1,53 @@
+name: Build Game Executable
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: # Ручной запуск тоже будет создавать новый релиз
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build Executable
+      run: |
+        # Важно: путь к данным зависит от ОС. В Windows разделитель ';'
+        # Для --onefile данные распаковываются во временную папку, пути нужно корректировать в коде
+        pyinstaller --onefile --windowed --add-data "data;data" main.py -i tank_icon.ico
+
+    - name: Create Release and Upload Asset
+      uses: softprops/action-gh-release@v1
+      with:
+        # Генерируем имя тега динамически: v1.0.<номер_запуска>
+        tag_name: v1.0.${{ github.run_number }}
+        # Имя релиза в интерфейсе
+        release_name: Build ${{ github.run_number }}
+        # Путь к собранному файлу
+        files: dist/main.exe
+        # Помечаем как черновик, если хотите проверять перед публикацией (false = сразу публично)
+        draft: false
+        # Помечаем как пре-релиз (опционально)
+        prerelease: false
+        # Тело релиза
+        body: |
+          Автоматическая сборка №${{ github.run_number }}
+          Дата: ${{ github.event.head_commit.timestamp }}
+          Коммит: ${{ github.sha }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
